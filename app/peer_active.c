@@ -11,10 +11,10 @@ TSocket initiateChat(char *servIP, unsigned short servPort){
 
   // 1- Conecta-se com um "par passivo": <IP do par passivo> <porta do par passivo>
   sock = ConnectToServer(servIP, servPort);
-
+  
   printf("Envie sua mensagem de saudação\n");
 
-  // 2- Recebe mensagem de saudacao do usu´ario (teclado) e a envia
+  // 2- Recebe mensagem de saudacao do usuario (teclado) e a envia
   scanf("%99[^\n]%*c",initialMessage);
   n = strlen(initialMessage);
   initialMessage[n] = '\n';
@@ -32,12 +32,11 @@ void handleChat(TSocket sock){
   fd_set setChat;
   int retChat;
   int n;
-
-  FD_ZERO(&setChat);
-  FD_SET(STDIN_FILENO, &setChat);
-  FD_SET(sock, &setChat);
-
+  
   for(;;) {
+    FD_ZERO(&setChat);
+    FD_SET(STDIN_FILENO, &setChat);
+    FD_SET(sock, &setChat);
     // 3- Usar SELECT para:
     retChat = select (FD_SETSIZE, &setChat, NULL, NULL, NULL);
 

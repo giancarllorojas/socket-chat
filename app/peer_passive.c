@@ -7,36 +7,42 @@
 #define BUFSIZE 100
 #define NTHREADS 100
 
+#define SERVER_IP "192.168.1.117"
+#define SERVER_PORT 2018
+
 /* Global Vars */
 int tid = 0;
 pthread_t threads[NTHREADS];
-TSocket srvSock, cliSock;  
+TSocket mainSrvSock, srvSock, cliSock;  
 int i;
+char userName[20];
 
 /* Structure of arguments to pass to client thread */
 struct TArgs {
   TSocket cliSock;
 };
 
+
+void unregisterInServer(){
+  char exitMessage[20];
+  sprintf(exitMessage, "3 %s \n", userName);
+  WriteN(mainSrvSock, exitMessage, strlen(exitMessage));
+}
+
 /* Handle client request */
-void * HandleChatWithActivePeer(void *args) {
-  printf("Thread iniciada!\n");
+void HandleChatWithActivePeer(TSocket cliSock) {
+  printf("Iniciando conversa!\n");
   char typedMessage[BUFSIZE], recievedMessage[BUFSIZE];
-  TSocket cliSock;
   fd_set setChat;
   int retChat;
   int n;
 
-  printf("Extraindo sock!\n");
-  cliSock = ((struct TArgs *) args) -> cliSock;
-  free(args); 
-
-  printf("Inicializando o select!\n");
-  FD_ZERO(&setChat);
-  FD_SET(STDIN_FILENO, &setChat);
-  FD_SET(cliSock, &setChat);
-
   for(;;) {
+    printf("Inicializando o select!\n");
+    FD_ZERO(&setChat);
+    FD_SET(STDIN_FILENO, &setChat);
+    FD_SET(cliSock, &setChat);
+
     printf("Esperando escrever ou receber mensagem!\n");
     retChat = select (FD_SETSIZE, &setChat, NULL, NULL, NULL);
     printf("Saiu do select\n");
@@ -68,9 +74,11 @@ void * HandleChatWithActivePeer(void *args) {
         // b.1) envia mensagem com a tag "FIM" para o par
         WriteN(cliSock, "FIM", 3);
         close(cliSock);
-        pthread_exit(NULL);
+        unregisterInServer();
+        exit(0);
       }else{
         //a.2) enviar mensagem para o par
+        printf("Escrevendo mensagem para o par: %s\n", typedMessage);
         n = strlen(typedMessage);
         typedMessage[n] = '\n';
         WriteN(cliSock, typedMessage, strlen(typedMessage));
@@ -79,34 +87,15 @@ void * HandleChatWithActivePeer(void *args) {
   }
 
   close(cliSock);
-  pthread_exit(NULL);
 }
 
 void ConnectWithActivePeer(){
-  struct TArgs *args;
-  if (tid == NTHREADS) { 
-    WriteError("Reached max number of clients"); 
-    exit(0);
-  }
-
   printf("Criando nova conexao\n");
   cliSock = AcceptConnection(srvSock);
   printf("Conexao criada!\n");
 
-  printf("Alocando memória para thread do client!\n");
-  /* Create separate memory for client argument */
-  if ((args = (struct TArgs *) malloc(sizeof(struct TArgs))) == NULL) { 
-    WriteError("malloc() failed");
-    exit(0);
-  }
-  args->cliSock = cliSock;
-
-  printf("Criando thread(TID: %d) para chat com o client!\n", tid);
-  /* Create a new thread to handle a chat with a new client */
-  if (pthread_create(&threads[tid++], NULL, HandleChatWithActivePeer, (void *) args)) { 
-    WriteError("pthread_create() failed"); 
-    exit(0);
-  }
+  /* Handle chat with active peer */
+  HandleChatWithActivePeer(cliSock);
 }
 
 /*
@@ -132,33 +121,74 @@ void MainLoop(){
 
     printf("Acao recebida\n");
 
-    // 4.2) receber comando do usuario para finalizar a aplicac¸˜ao
+    // 4.2) receber comando do usuario para finalizar a aplicacao
     if (FD_ISSET(STDIN_FILENO, &set)) {
       printf("Recebeu do STDIN no MainLoop\n");
       scanf("%99[^\n]%*c", strQuit);
       if (strncmp(strQuit, "FIM", 3) == 0){
         // TODO: c.1) finaliza usu´ario no servidor de usuarios (cod 3):
         // c.2) finaliza aplicacao
+        unregisterInServer();
         exit(0);
       };
     }
 
     // 4.1) aguardar conexao de "par ativo"
     if (FD_ISSET(srvSock, &set)) {
+      printf("Recebeu do srvSock no MainLoop\n");
       ConnectWithActivePeer();
     }
   }
+}
 
+void registerInServer(int localServerPort){
+  char registerMessage[20];
+  char registerResponse[10];
+  int registerResponseCode;
+
+  printf("Conectando ao servidor principal\n");
+  // 2- Conecta-se com o servidor de usuarios: <IP do servidor> <porta 2018>
+  mainSrvSock = ConnectToServer(SERVER_IP, SERVER_PORT);
+
+  // 3- Registra seu usu´ario (cod 1): <1> <nome do usuario> <porta> <\n>
+  printf("Inicializando par passivo.\n Digite seu nome de usuário para se registrar no servidor:\n");
+  scanf("%99[^\n]%*c", userName);
+  
+  sprintf(registerMessage, "1 %s %d\n", userName, localServerPort);
+  printf("Registrando par passivo no servidor: %s\n", registerMessage);
+
+  WriteN(mainSrvSock, registerMessage, strlen(registerMessage) + 1);
+
+  // 3.1) recebe confirmacao da solicitacao: (0, 1 ou 2)
+  if (ReadLine(mainSrvSock, registerResponse, strlen(registerResponse)) < 0) 
+  {
+    ExitWithError("ReadLine() failed"); 
+    exit(1);
+  }else{
+    printf("Recebida resposta do servidor principal: %s\n", registerResponse);
+    registerResponseCode = atoi(registerResponse);
+    if(registerResponseCode == 0){
+      printf("Limite de usuários\n");
+      exit(1);
+    }else if(registerResponseCode == 1){
+      printf("Login Existente\n");
+      exit(1);
+    }else if(registerResponseCode == 2){
+      printf("Registrado com sucesso!!!\n");
+    }
+  }
 }
 
 int main(int argc, char *argv[]) {
+  int localServerPort;
+  
   // 1- Cria um no servidor: <maaquina local> <porta>
   if (argc == 1) { ExitWithError("Usage: server <local port>"); }
-  srvSock = CreateServer(atoi(argv[1]));
 
-  // TODO: 2- Conecta-se com o servidor de usuarios: <IP do servidor> <porta 2018>
-  // TODO: 3- Registra seu usu´ario (cod 1): <1> <nome do usu´ario> <porta> <\n>
-  // TODO: 3.1) recebe confirmacao da solicitac¸˜ao: (0, 1 ou 2)
+  localServerPort = atoi(argv[1]);
+  srvSock = CreateServer(localServerPort);
+
+  registerInServer(localServerPort);
 
   MainLoop();
   
