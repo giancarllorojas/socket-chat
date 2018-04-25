@@ -4,12 +4,14 @@
 
 VERSION = 1.0
 
-SERVER = peer_passive.c
-CLIENT = peer_active.c
+P_SERVER = peer_passive.c
+P_CLIENT = peer_active.c
 O_CLIENT = client.c
-SRV = srv
-CLI = cli
-ONLY_CLI = o_cli
+O_SERVER = server.c
+SRV = passive
+CLI = active
+ONLY_CLI = client
+ONLY_SRV = server
 
 #-------------------------------------------------------------
 # the rest of the file should not change
@@ -24,19 +26,22 @@ LFLAGS = -lpthread
 RM = rm
 
 # make all
-all:  $(OBJ)/mysocket.o $(BIN)/$(SRV) $(BIN)/$(CLI) $(BIN)/$(ONLY_CLI)
+all:  $(OBJ)/mysocket.o $(BIN)/$(SRV) $(BIN)/$(CLI) $(BIN)/$(ONLY_CLI) $(BIN)/$(ONLY_SRV)
 
 $(OBJ)/mysocket.o: $(SRC)/mysocket.c $(INC)/mysocket.h
 	$(CC) -c $(CFLAGS) -o $@ $(SRC)/mysocket.c
 
-$(BIN)/$(SRV): $(OBJ)/mysocket.o $(SERVER)
-	$(CC) $(CFLAGS) -o $@ $(OBJ)/mysocket.o $(SERVER) $(LFLAGS) 
+$(BIN)/$(SRV): $(OBJ)/mysocket.o $(P_SERVER)
+	$(CC) $(CFLAGS) -o $@ $(OBJ)/mysocket.o $(P_SERVER) $(LFLAGS) 
 
-$(BIN)/$(CLI): $(OBJ)/mysocket.o $(CLIENT)
-	$(CC) $(CFLAGS) -o $@ $(OBJ)/mysocket.o $(CLIENT)
+$(BIN)/$(CLI): $(OBJ)/mysocket.o $(P_CLIENT)
+	$(CC) $(CFLAGS) -o $@ $(OBJ)/mysocket.o $(P_CLIENT)
 
 $(BIN)/$(ONLY_CLI): $(OBJ)/mysocket.o $(O_CLIENT)
 	$(CC) $(CFLAGS) -o $@ $(OBJ)/mysocket.o $(O_CLIENT)
+
+$(BIN)/$(ONLY_SRV): $(OBJ)/mysocket.o $(O_SERVER)
+	$(CC) $(CFLAGS) -o $@ $(OBJ)/mysocket.o $(O_SERVER) $(LFLAGS) 
 # version
 version: 
 	@echo $(VERSION) "(Draft Version!)" 
