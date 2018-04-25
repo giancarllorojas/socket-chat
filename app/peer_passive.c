@@ -7,7 +7,7 @@
 #define BUFSIZE 100
 #define NTHREADS 100
 
-#define SERVER_IP "192.168.1.117"
+#define SERVER_IP "192.168.1.111"
 #define SERVER_PORT 2018
 
 /* Global Vars */

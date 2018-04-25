@@ -28,7 +28,7 @@ TSocket initiateChat(char *servIP, unsigned short servPort){
 }
 
 void handleChat(TSocket sock){
-  char typedMessage[BUFSIZE], recievedMessage[BUFSIZE];
+  char recievedMessage[BUFSIZE];
   fd_set setChat;
   int retChat;
   int n;
@@ -58,12 +58,13 @@ void handleChat(TSocket sock){
 
     // 3.1) continuar escrevendo
     if (FD_ISSET(STDIN_FILENO, &setChat)) {
+      char typedMessage[BUFSIZE] = "";
       scanf("%99[^\n]%*c", typedMessage);
 
       // 3.3) finalizar
       if(strncmp(typedMessage, "FIM", 3) == 0){
         // c.1) envia mensagem com a tag "FIM"
-        WriteN(sock, "FIM", 3);
+        WriteN(sock, "FIM\n", 3);
 
         //c.2) finaliza aplicac¸˜ao
         close(sock);

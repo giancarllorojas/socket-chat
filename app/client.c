@@ -1,21 +1,24 @@
 #include "mysocket.h"
 
-#define SERVER_IP "192.168.1.117"
+#define SERVER_IP "192.168.1.111"
 #define SERVER_PORT 2018
 
 //4- Exibe lista de usu´arios ativos
 void recieveUserList(TSocket sock){
-    char userCount[20];
+    char userCount[100] = {"\0"};
     int  intUserCount, i;
 
     // Recebe numero de usuarios
     ReadLine(sock, userCount, 20);
-    intUserCount = atoi(userCount);
+    sscanf(userCount, "%d", &intUserCount);
     
-    printf("Total de usuários: %d\nLista de usuários:\n", intUserCount);
+    printf("Total de usuários: %d\n", intUserCount);
     for(i = 0; i < intUserCount; i++){
-        char userString[20];
-        ReadLine(sock, userString, 20);
+        char userString[100];
+        printf(" - Usuário - ");
+        if(ReadLine(sock, userString, 100) < 0){
+            printf("Erro ao ler o RL\n");
+        };
         printf("%s", userString);
     }
 }
@@ -23,20 +26,18 @@ void recieveUserList(TSocket sock){
 void mainLoop(TSocket sock){
     char typedMessage[1];
     // 5- Aguarda comando do administrador:
-    for(;;) {
-        printf("Digite 1 para receber a lista de usuários e 0 para sair\n");
-        scanf("%99[^\n]%*c", typedMessage);
+    printf("Digite 2 para receber a lista de usuários e 0 para sair\n");
+    scanf("%99[^\n]%*c", typedMessage);
 
-        // 5.1) atualiza lista de usu´arios (volta ao passo 2)
-        if(strncmp(typedMessage, "1", 1) == 0){
-            // 3- Recebe lista de usu´arios ativos //tamanho maximo de 20
-            recieveUserList(sock);
-        }
-        // 5.2) finaliza aplicac¸˜ao
-        else if(strncmp(typedMessage, "0", 0) == 0){
-            printf("Saindo\n");
-            exit(0);
-        }
+    // 5.1) atualiza lista de usu´arios (volta ao passo 2)
+    if(strncmp(typedMessage, "2", 1) == 0){
+        // 3- Recebe lista de usu´arios ativos //tamanho maximo de 20
+        recieveUserList(sock);
+    }
+    // 5.2) finaliza aplicac¸˜ao
+    else if(strncmp(typedMessage, "0", 0) == 0){
+        printf("Saindo\n");
+        exit(0);
     }
 }
 
